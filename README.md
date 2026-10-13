@@ -1,79 +1,189 @@
 # Agentic Order Management
 
-An end-to-end **agentic order-management assistant** built on the Brazilian E-Commerce
-Public Dataset by Olist. The assistant combines a **LangGraph** agent powered by Google
-**Gemini**, **RAG** over synthetic demo business policies (via **ChromaDB + Sentence
-Transformers**), and deterministic exception/dashboard analytics over a **SQLite** store.
-Both a **FastAPI REST API** and a self-contained **Jupyter Notebook** walkthrough are
-provided.
+An end-to-end order intelligence and customer-support assistant built using the Brazilian E-Commerce Public Dataset by Olist. The project combines a Gemini-powered conversational agent, deterministic exception detection, and Retrieval-Augmented Generation (RAG) to answer operational questions about orders, deliveries, payments, and support policies.
 
-> **Disclaimer:** Policy documents and exception rules in this project are *synthetic
-> demo business rules* for a portfolio demo. They are **not** official Olist policies.
-> Exception evaluations and eligibility answers should always be labelled as such.
+The application uses **LangGraph, LangChain, FastAPI, SQLAlchemy, SQLite, ChromaDB, Sentence Transformers, and pytest** to demonstrate how an LLM can interact with structured business data, retrieve relevant policy documents, and support order-related workflows.
+
+> **Disclaimer:** The knowledge base and exception rules are synthetic demo policies created for this portfolio project. They are not official Olist policies or recommendations for real business operations. Policy-related answers and exception results should be interpreted as demo outputs.
 
 ---
 
-## Project Highlights
+## Table of Contents
 
-| Capability | How it works |
-|---|---|
-| 🧠 **LLM Agent** | LangGraph `StateGraph` with tool-calling Gemini; tool-node routing and memory checkpoints |
-| 🗂️ **Order tooling** | 10 SQLAlchemy-backed tools for order status, details, items, payments, delivery, reviews, customer orders, search, exception checks, and simulated support tickets |
-| 📚 **RAG for policies** | Local ChromaDB + `all-MiniLM-L6-v2` embeddings over 8 synthetic policy documents |
-| ⚠️ **Exception engine** | Deterministic rules flag DELIVERY_DELAY, SHIPPED_NOT_DELIVERED, PAYMENT_MISMATCH, APPROVAL_SLOW, etc. |
-| 📊 **Dashboard** | Aggregated order counts by status and exception totals |
-| 🌐 **REST API** | FastAPI with `/api/chat`, `/api/orders/*`, `/api/support-tickets`, `/api/dashboard` |
-| 📒 **Notebook demo** | `Agentic_Order_Management.ipynb` – step-by-step walkthrough with safe execution traces |
-| 🧪 **Tests** | Pytest suite covering DB init, row counts, tools, exception rules, and tickets |
+- [Project Overview](#project-overview)
+- [Key Features](#key-features)
+- [Architecture](#architecture)
+- [Project Structure](#project-structure)
+- [Dataset and Database](#dataset-and-database)
+- [Technology Stack](#technology-stack)
+- [How the Agent Works](#how-the-agent-works)
+- [Tool Registry](#tool-registry)
+- [Exception Detection Engine](#exception-detection-engine)
+- [RAG Knowledge Base](#rag-knowledge-base)
+- [API Endpoints](#api-endpoints)
+- [Installation and Setup](#installation-and-setup)
+- [Running the Application](#running-the-application)
+- [Testing](#testing)
+- [Dashboard and Analytics](#dashboard-and-analytics)
+- [Configuration Reference](#configuration-reference)
+- [Troubleshooting](#troubleshooting)
+- [Limitations and Future Improvements](#limitations-and-future-improvements)
 
 ---
 
-## Repository Structure
+## Project Overview
 
+Traditional order-management systems often require users to navigate multiple screens or manually query databases to investigate an order.
+
+This project provides a conversational interface that allows users to ask questions in natural language, such as:
+
+- What is the current status of this order?
+- Was the order delivered on time?
+- Are there any delivery or payment exceptions?
+- What does the demo return policy say?
+- Should a support ticket be created for this issue?
+
+The system combines three capabilities:
+
+1. **Structured data access:** Retrieves order, customer, payment, item, and review information from SQLite.
+2. **Deterministic exception detection:** Uses Python rules to identify delivery and payment anomalies.
+3. **Policy-aware question answering:** Uses RAG to retrieve relevant policy information before generating an answer.
+
+A LangGraph agent coordinates these capabilities and exposes them through a FastAPI backend.
+
+## Key Features
+
+### 1. Structured order intelligence
+
+- Order status and delivery timeline lookup
+- Customer order history
+- Order item, seller, and freight details
+- Payment breakdowns
+- Review summaries
+- Aggregated operational metrics
+
+### 2. Deterministic exception detection
+
+The exception engine evaluates order records against predefined rules, identifies potential issues, and returns evidence such as delivery dates and delay duration.
+
+### 3. Retrieval-Augmented Generation (RAG)
+
+Synthetic Markdown policy documents are converted into embeddings and stored in ChromaDB. The agent retrieves relevant document chunks to ground policy-related answers.
+
+### 4. Tool-using AI agent
+
+The Gemini model can select from a registry of structured tools. Python executes the selected tools, and the results are returned to the model for response generation.
+
+### 5. REST API
+
+FastAPI exposes endpoints for chatting with the agent, retrieving order information, evaluating exceptions, creating simulated support tickets, and accessing dashboard metrics.
+
+### 6. Automated testing
+
+A pytest suite validates database initialization, data loading, order queries, exception rules, and support-ticket behavior, including negative test cases.
+
+---
+
+## Architecture
+
+The application follows a layered architecture with a clear separation between the LLM, business logic, data access, and retrieval.
+
+```text
+                         User
+                          |
+                          v
+                  FastAPI REST API
+                          |
+                          v
+                  LangGraph Agent
+                          |
+                  Gemini + Tool Calling
+                          |
+                  +-------+--------+
+                  |                |
+                  v                v
+             Order Tools       Policy Tool
+                  |                |
+                  v                v
+             Service Layer     RAG Retriever
+                  |                |
+                  v                v
+          SQLite + SQLAlchemy  ChromaDB
+                  |
+                  v
+            Olist Order Data
+
+       Deterministic Exception Engine
+       validates order data using rules
+
+       Pytest validates database,
+       service, tool, and rule behavior
 ```
-Project_order_managment/
-├── Agentic_Order_Management.ipynb   # Self-contained end-to-end walkthrough
-├── requirements.txt                 # Python dependencies
-├── pytest.ini                       # pytest config
-├── .env.example                     # Env-var template (copy to .env)
+
+### Architectural layers
+
+| Layer | Responsibility |
+|---|---|
+| Data layer | Stores Olist data in SQLite using SQLAlchemy |
+| Service layer | Implements order queries, exception rules, tickets, and dashboard metrics |
+| Agent layer | Uses Gemini and LangGraph to coordinate tool calls |
+| Retrieval layer | Retrieves relevant policy chunks using embeddings and ChromaDB |
+| API layer | Exposes application functionality through FastAPI |
+| Testing layer | Validates database, service, and tool behavior using pytest |
+
+This separation allows deterministic business logic to be tested independently of the LLM.
+
+---
+
+## Project Structure
+
+```text
+Agentic_order_Managment/
+├── README.md
+├── requirements.txt
+├── pytest.ini
+├── Agentic_Order_Management.ipynb
+├── _build_notebook.py
 │
 ├── backend/
-│   ├── main.py                      # FastAPI entrypoint (CORS + /health)
-│   ├── config.py                    # Pydantic Settings from .env
-│   ├── logging_setup.py             # Structured logger factory
+│   ├── main.py
+│   ├── config.py
+│   ├── logging_setup.py
 │   │
 │   ├── agent/
-│   │   ├── graph.py                 # LangGraph state graph, run_agent(), safe traces
-│   │   ├── llm.py                   # Gemini chat-model builder
-│   │   └── prompts.py               # System prompt with guardrails
+│   │   ├── graph.py
+│   │   ├── llm.py
+│   │   └── prompts.py
 │   │
 │   ├── api/
-│   │   └── routes.py                # /api/chat, /api/orders/{id}, /api/dashboard, ...
+│   │   └── routes.py
 │   │
 │   ├── database/
-│   │   ├── base.py                  # Declarative Base
-│   │   ├── models.py                # SQLAlchemy ORM models (Order, Customer, Ticket, ...)
-│   │   ├── session.py               # Engine / SessionLocal / init helpers
-│   │   └── import_data.py           # Repeatable CSV → SQLite import
+│   │   ├── base.py
+│   │   ├── models.py
+│   │   ├── session.py
+│   │   └── import_data.py
 │   │
 │   ├── rag/
-│   │   ├── ingest.py                # Markdown chunking + ChromaDB upsert
-│   │   └── retriever.py             # search_business_policies_tool + retrieve_policies()
+│   │   ├── ingest.py
+│   │   └── retriever.py
 │   │
 │   ├── schemas/
-│   │   └── api.py                   # Pydantic schemas for REST requests / responses
+│   │   └── api.py
 │   │
 │   ├── services/
-│   │   ├── order_service.py         # All order/customer/payment/review queries
-│   │   ├── exception_service.py     # Deterministic demo exception rules
-│   │   ├── ticket_service.py        # Simulated local support tickets
-│   │   └── dashboard_service.py     # Aggregated dashboard metrics
+│   │   ├── order_service.py
+│   │   ├── exception_service.py
+│   │   ├── ticket_service.py
+│   │   └── dashboard_service.py
 │   │
 │   └── tools/
-│       └── order_tools.py           # 11 LangChain tools + ORDER_TOOLS registry
+│       └── order_tools.py
 │
-├── dataset/                         # Olist CSV files (9 CSVs)
-├── knowledge_base/                  # Synthetic demo policy markdown docs
+├── dataset/
+│   └── *.csv
+│
+├── knowledge_base/
 │   ├── shipping_policy.md
 │   ├── return_policy.md
 │   ├── refund_policy.md
@@ -83,422 +193,483 @@ Project_order_managment/
 │   ├── delivery_sla.md
 │   └── exception_handling.md
 │
+├── data/
+│   ├── olist.db
+│   └── chroma/
+│
 ├── tests/
-│   ├── conftest.py                  # Sample-order DB fixtures
+│   ├── conftest.py
 │   └── test_database_and_tools.py
 │
 └── docs/
     └── dataset_analysis.md
 ```
 
+*The tree above describes the expected layout. Generated database files and local vector-store contents may be ignored by Git and created during setup.*
+
 ---
 
-## Tech Stack
+## Dataset and Database
 
-| Layer | Library |
+The project uses the **Brazilian E-Commerce Public Dataset by Olist**, containing historical e-commerce order information.
+
+The CSV files are imported into a local SQLite database using SQLAlchemy.
+
+### Core tables
+
+- `customers`
+- `orders`
+- `order_items`
+- `products`
+- `sellers`
+- `order_payments`
+- `order_reviews`
+- `product_category_translations`
+- `support_tickets`
+
+The `support_tickets` table supports locally simulated ticket creation.
+
+### Important order fields
+
+The `orders` table contains fields such as:
+
+- `order_id`
+- `customer_id`
+- `order_status`
+- `order_purchase_timestamp`
+- `order_approved_at`
+- `order_delivered_carrier_date`
+- `order_delivered_customer_date`
+- `order_estimated_delivery_date`
+
+These fields support order tracking, delivery-delay calculations, and exception detection.
+
+### Important data distinction
+
+The dataset distinguishes between `customer_id`, which identifies a customer record associated with an order, and `customer_unique_id`, which identifies the customer across orders.
+
+The agent prompt accounts for this distinction when retrieving customer order history.
+
+---
+
+## Technology Stack
+
+| Component | Technology |
 |---|---|
-| Runtime | Python 3.11+ |
-| API | **FastAPI** + Uvicorn |
-| ORM | **SQLAlchemy 2.x** |
-| Database | **SQLite** (file at `data/olist.db`) |
-| LLM | **Google Gemini** via `langchain-google-genai` |
-| Agent framework | **LangChain Core** + **LangGraph** (StateGraph, ToolNode, MemorySaver) |
-| Vector store | **ChromaDB** (persistent, `data/chroma`) |
-| Embeddings (local) | **Sentence-Transformers** `all-MiniLM-L6-v2` |
-| Data | **Pandas** (CSV ingestion) |
-| Validation / config | **Pydantic v2** + `pydantic-settings` + `python-dotenv` |
-| Testing | **pytest** |
+| Language | Python 3.11+ |
+| LLM | Google Gemini |
+| Agent orchestration | LangGraph |
+| Tool integration | LangChain Core |
+| API | FastAPI and Uvicorn |
+| Database | SQLite |
+| ORM | SQLAlchemy 2.x |
+| Vector database | ChromaDB |
+| Embeddings | Sentence Transformers (`all-MiniLM-L6-v2`) |
+| Data processing | pandas |
+| Validation and settings | Pydantic and pydantic-settings |
+| Testing | pytest |
 
 ---
 
-## Installation
+## How the Agent Works
 
-### 1. Prerequisites
+The agent uses a LangGraph `StateGraph` to coordinate the conversation and tool execution.
 
-- **Python 3.11** or newer
-- A **Google AI Studio** API key with Gemini access (see `.env.example`)
-- The Olist dataset already placed under `dataset/` (the 9 CSVs are included in the repo)
+### Agent execution flow
 
-### 2. Clone / navigate
+1. The user sends a natural-language question to the API.
+2. The Gemini model receives the conversation and the available tool definitions.
+3. The model decides whether to call a tool or provide a final response.
+4. LangGraph routes tool calls to the appropriate tool executor.
+5. Python executes the selected tool, which calls the relevant service or retriever.
+6. The tool result is added to the conversation.
+7. The model can call additional tools if required.
+8. The process ends when the model produces a final response or reaches the configured recursion limit.
 
-```bash
-cd Project_order_managment
-```
+### Function calling
 
-### 3. Create a virtual environment
+Function calling allows the model to request a structured operation, such as retrieving an order's status.
 
-**Windows (PowerShell):**
-```powershell
-python -m venv .venv
-.\.venv\Scripts\Activate.ps1
-```
+The model selects the tool and supplies its arguments. The application executes the function and returns the result.
 
-**macOS / Linux (Bash):**
-```bash
-python3 -m venv .venv
-source .venv/bin/activate
-```
+**The LLM chooses; Python executes.** The model does not directly query the database.
 
-### 4. Install dependencies
+### LangGraph memory
 
-```bash
-pip install --upgrade pip
-pip install -r requirements.txt
-```
+The graph uses `MemorySaver` with a session identifier (`thread_id`) to retain conversation state across requests within the running application.
 
-> ⏱️ First-time note: `sentence-transformers` and `tf-keras` are large. Subsequent
-> imports will use a cached model; the initial embedding-model download runs on the
-> first RAG call.
+For example:
 
-### 5. Configure the environment
+- User: "What is the status of order X?"
+- User: "Was it delivered late?"
 
-Copy the template and set **your own** `GEMINI_API_KEY`:
+The agent can use the previous conversation to understand which order the follow-up refers to.
 
-```bash
-# copy template
-cp .env.example .env
-```
+This memory is in-process and is not persistent across application restarts.
 
-Edit `.env` with your real key:
+### Error handling and execution traces
 
-```dotenv
-# .env
-GEMINI_API_KEY=your_real_google_gemini_api_key_here
-GEMINI_MODEL=gemini-2.5-flash
+The agent wrapper handles execution errors and returns a controlled response rather than exposing internal errors directly to the user.
 
-# Optional overrides (defaults shown):
-# DATABASE_URL=sqlite:///./data/olist.db
-# CHROMA_PATH=./data/chroma
-# DATASET_DIR=./dataset
-# KNOWLEDGE_BASE_DIR=./knowledge_base
-# DATASET_AS_OF_DATE=2018-10-17
-# LONG_DELIVERY_DAYS=30
-# AGENT_RECURSION_LIMIT=12
-# LOG_LEVEL=INFO
-```
-
-> 🔐 **Security rule:** Never commit `.env` or print keys to logs / notebooks. The
-> `.gitignore` already excludes `.env`, `.venv/`, `data/`, and `*.db`.
-
-### 6. Initialize the SQLite database (Olist import)
-
-```bash
-python -m backend.database.import_data
-```
-
-This:
-1. Validates that all 9 required Olist CSVs exist in `dataset/` with correct columns.
-2. Drops & recreates tables (idempotent).
-3. Loads ~99k orders, ~112k items, ~100k payments, ~100k reviews, etc.
-4. Prints row counts per table.
-
-**Partial / dev import** (faster): pass `order_ids` programatically via
-`backend.database.import_data.import_dataset(order_ids=[...])`.
-
-### 7. Ingest the policy knowledge base (RAG)
-
-```bash
-python -m backend.rag.ingest
-```
-
-This:
-1. Reads every `*.md` file in `knowledge_base/`.
-2. Chunks each doc (`chunk_size=700`, `overlap=80`).
-3. Embeds chunks locally with `all-MiniLM-L6-v2`.
-4. Persists a ChromaDB collection `demo_policies` under `data/chroma/`.
-
-### 8. Run the smoke tests
-
-```bash
-pytest
-```
-
-Tests use a small subset of real order IDs to validate the database schema, tool
-semantics, exception-detection logic, and ticket creation (see
-`tests/conftest.py` and `tests/test_database_and_tools.py`).
+It also records a safe execution trace, including tool usage, policy sources, and simulated actions. Hidden internal reasoning is not included in the trace.
 
 ---
 
-## Running the Application
+## Tool Registry
 
-### Start the FastAPI server
+The project registers 11 tools in `backend/tools/order_tools.py`.
 
-```bash
-uvicorn backend.main:app --host 0.0.0.0 --port 8000 --reload
-```
-
-- **Health check:** http://localhost:8000/health → `{"status":"ok"}`
-- **Swagger UI:**   http://localhost:8000/docs
-- **ReDoc:**        http://localhost:8000/redoc
-
-### REST API Endpoints
-
-| Method | Path | Description |
-|---|---|---|
-| `POST` | `/api/chat` | Run the agent; returns reply + safe trace (tools/sources/actions). Pass `{ message, session_id? }`. |
-| `GET`  | `/api/orders/{order_id}` | Full order details (customer, items, payments, reviews). |
-| `GET`  | `/api/orders/{order_id}/status` | Current status + key dates. |
-| `GET`  | `/api/orders/{order_id}/items` | Products / sellers / freight on the order. |
-| `GET`  | `/api/orders/{order_id}/exceptions` | Run deterministic demo exception rules. |
-| `POST` | `/api/support-tickets` | Create a simulated local ticket: `{ order_id, issue, description }`. |
-| `GET`  | `/api/dashboard` | Aggregated portfolio metrics (totals, by-status, exception count). |
-
-**Examples** (HTTPie / curl):
-
-```bash
-# Ask the agent about an order
-curl -X POST http://localhost:8000/api/chat \
-  -H 'Content-Type: application/json' \
-  -d '{ "message": "What is the status of order e481f51cbdc54678b7cc49136f2d6af7 and was it delivered on time?", "session_id": "demo-1" }'
-
-# Check exceptions on a known-late order
-curl http://localhost:8000/api/orders/203096f03d82e0dffbc41ebc2e2bcfb7/exceptions
-
-# Dashboard
-curl http://localhost:8000/api/dashboard
-```
-
----
-
-## Jupyter Notebook Demo
-
-`Agentic_Order_Management.ipynb` is the **canonical end-to-end walkthrough**. It:
-
-1. Loads `.env` and configures logging.
-2. (Optional.) Re-imports the Olist dataset into SQLite.
-3. Ingests the knowledge-base markdown docs into ChromaDB.
-4. **Smoke-tests every tool directly** (no LLM) against real order IDs.
-5. Runs the Gemini-powered **LangGraph agent** on representative scenarios:
-   - Order status + delivery timeline
-   - Delivery exception detection (late orders)
-   - Policy-based RAG (returns, refunds, cancellation, SLA)
-   - Multi-step: combine exception + policy to answer eligibility
-   - Create a simulated support ticket
-6. Prints **safe execution traces** (tools used, sources, actions taken) without
-   exposing internal chain-of-thought.
-
-### Running the notebook
-
-```bash
-jupyter lab Agentic_Order_Management.ipynb
-# or
-jupyter notebook Agentic_Order_Management.ipynb
-```
-
-### Troubleshooting the notebook
-
-If you hit `ImportError: cannot import name 'search_business_policies_tool' from 'backend.tools.order_tools'`
-*after* pulling source changes, the Jupyter kernel has stale module objects cached. Fix it
-with either:
-
-- **Preferred (quick):** Re-run the "Force-reload backend modules" preamble cell at the
-  top of the smoke-test section (it evicts every `backend.*` module from `sys.modules`).
-- **Full reset:** Kernel → **Restart Kernel and Run All Cells**.
-
----
-
-## Agent & Tools Deep-Dive
-
-### Architecture (LangGraph)
-
-```
-START → agent (Gemini w/ bound tools)
-              │
-     ┌── tools_condition ──┐
-     │                     │
-     ▼                     ▼
-  ToolNode               END
-  (executes any called
-   tool, records trace)
-     │
-     └─────► agent (loop until END)
-```
-
-- `StateGraph` state key is `messages: Annotated[list, add_messages]`.
-- Checkpointing via `MemorySaver` → multi-turn sessions are keyed by `thread_id`.
-- `AGENT_RECURSION_LIMIT` (default `12`) caps tool loops.
-
-### 11 Tools (ORDER_TOOLS registry)
-
-All tools return JSON-serialized strings for LLM-friendly consumption.
-
-| Tool Name | Purpose |
+| Tool | Purpose |
 |---|---|
-| `get_order_status` | Status + purchase/approval/carrier/delivery/estimated dates |
-| `get_order_details` | Full compound view: customer + items + payments + reviews |
-| `get_customer_orders` | List orders by `customer_id` or `customer_unique_id` |
-| `search_order_by_customer` | Lightweight order IDs + statuses for a customer |
-| `get_order_items` | Products, sellers, prices, freight, shipping limits |
-| `get_payment_details` | Payment type, installments, total, per-seq breakdown |
-| `get_delivery_information` | Full delivery timeline only |
-| `check_delivery_exception` | Run deterministic demo exception rules on the order |
-| `get_order_reviews` | Review scores + comment title / message |
-| `create_support_ticket` | Simulated local ticket (writes to `support_tickets` table) |
-| `search_business_policies` | RAG over synthetic policy markdown; returns chunks + sources |
+| `get_order_status` | Retrieves order status and key dates |
+| `get_order_details` | Retrieves detailed order information |
+| `get_customer_orders` | Retrieves orders associated with a customer |
+| `search_order_by_customer` | Searches for orders using customer information |
+| `get_order_items` | Retrieves item, seller, and freight details |
+| `get_payment_details` | Retrieves payment records and breakdowns |
+| `get_delivery_information` | Retrieves delivery timeline information |
+| `check_delivery_exception` | Evaluates an order against demo exception rules |
+| `get_order_reviews` | Retrieves review information |
+| `create_support_ticket` | Creates a local simulated support ticket |
+| `search_business_policies` | Retrieves relevant policy chunks through RAG |
 
-Each tool call is recorded to a thread-local trace bucket (see
-`backend/tools/order_tools.py` — `reset_trace / get_trace / _record`). The
-`run_agent()` wrapper returns a *safe* trace that surfaces only `tools_used`,
-`sources`, and `actions` — **never chain-of-thought**.
+Tool arguments are validated using Pydantic schemas. Tool results are returned to the agent, and execution metadata is recorded for the response trace.
 
-### System-prompt guardrails
+---
 
-The prompt in `backend/agent/prompts.py` enforces:
+## Exception Detection Engine
 
-- Always use tools for order facts; **never invent IDs/dates/product names**.
-- Exception results = deterministic demo rules, not official policy.
-- Policy Q&A *requires* RAG. If retrieval returns empty, say so instead of inventing a rule.
-- Combine exception + policy for return/refund/cancel eligibility questions.
-- No real money movement — tickets are simulated / local only.
-- Do not reveal hidden chain-of-thought.
+The exception engine is implemented in:
 
-### Exception Engine (deterministic demo rules)
+`backend/services/exception_service.py`
 
-Implemented in `backend/services/exception_service.py`. Evaluates each order against
-an as-of date (`DATASET_AS_OF_DATE=2018-10-17` by default — matches the dataset's
-last-modified historical day).
+It uses deterministic Python rules rather than asking the LLM to decide whether an order violates a rule.
 
-Rules include:
-- **DELIVERY_DELAY** – actual delivery > estimated delivery. Severity HIGH if ≥ 7 d.
-- **MISSING_DELIVERY_INFO** – status=delivered but timestamp absent.
-- **SHIPPED_NOT_DELIVERED** – status=shipped, estimated date has passed, no delivery.
-- **IN_TRANSIT** – shipped + carrier scan present but not yet delivered beyond threshold.
-- **APPROVAL_SLOW** – purchase → approval took ≥ 3 days.
-- **PAYMENT_MISMATCH** – Σ(payments) differs from Σ(items+freight) by > 5%.
-- **LONG_STILL_DELIVERING** – purchase-to-as-of exceeds `LONG_DELIVERY_DAYS` (30 d)
-  and order is not delivered / cancelled.
+### Implemented rules
 
-A top-level `exception_type / severity` summary is produced from the ranked list.
+| Rule | Purpose |
+|---|---|
+| `DELIVERY_DELAY` | Detects delivery after the estimated delivery date |
+| `MISSING_DELIVERY_INFO` | Detects a delivered status without an actual delivery timestamp |
+| `SHIPPED_NOT_DELIVERED` | Detects shipped orders past their estimated delivery date that have not been delivered |
+| `IN_TRANSIT` | Identifies shipped orders that have not yet passed their estimated delivery date |
+| `APPROVED_NOT_SHIPPED` | Identifies approved, invoiced, or processing orders without carrier handoff |
+| `LONG_DELIVERY_DURATION` | Detects delivery durations exceeding the configured threshold |
+| `PAYMENT_MISSING` | Detects orders without payment records |
+| `PAYMENT_UNDEFINED` | Detects payment records with an undefined payment type |
+| `PAYMENT_ZERO_VALUE` | Detects payment records with a zero payment value |
+
+The engine can return detected exceptions, severity, and supporting evidence. When multiple exceptions are present, it prioritizes the more severe finding.
+
+### Historical dataset date
+
+The project uses a configurable `DATASET_AS_OF_DATE`, defaulting to `2018-10-17`.
+
+Because the Olist dataset is historical, using the current date for undelivered orders could incorrectly classify old records as currently overdue. A fixed reference date makes the demo behavior more reproducible.
+
+### Why use deterministic rules?
+
+Delivery dates and payment records are structured facts. Calculations and comparisons are easier to test, explain, and reproduce in Python than through unconstrained LLM reasoning.
+
+The LLM's role is to interpret the user's question, request the relevant tool, and explain the returned result.
 
 ---
 
 ## RAG Knowledge Base
 
-ChromaDB collection: `demo_policies` | Embeddings: `sentence-transformers/all-MiniLM-L6-v2` (local, CPU OK)
+The synthetic Markdown policies are stored under `knowledge_base/`.
 
-8 synthetic policy documents in `knowledge_base/`:
+They cover:
 
-| File | Topics |
-|---|---|
-| `shipping_policy.md` | Processing window, carrier types, cutoffs, expedited rules |
-| `delivery_sla.md` | State-level SLA, rural surcharges, estimated-vs-guaranteed |
-| `return_policy.md` | 30-day post-delivery eligibility, non-returnable categories |
-| `refund_policy.md` | Refund vs store credit, original-payment-method rules, timelines |
-| `cancellation_policy.md` | Cancel windows (pre-approval, pre-shipment, post-shipment exceptions) |
-| `payment_policy.md` | Accepted methods, installment rules, boleto deadlines |
-| `exception_handling.md` | Delay → auto-compensation grid, chargeback handling |
-| `customer_support_policy.md` | Channel SLAs (email 24h, chat 15 min), escalation tiers |
+- Shipping
+- Delivery service-level expectations
+- Returns
+- Refunds
+- Cancellations
+- Payment handling
+- Customer support
+- Exception handling
 
-All content is **synthetic demo rules** for the portfolio demo.
+### RAG pipeline
+
+**1. Ingestion**
+
+The ingestion script reads the policy documents, splits them into chunks, generates embeddings using `all-MiniLM-L6-v2`, and stores them in ChromaDB.
+
+**2. Retrieval**
+
+The user's policy question is embedded and compared against the stored chunks. The retriever returns the top four matching chunks.
+
+**3. Generation**
+
+The relevant retrieved text is passed back through the policy-search tool to the agent, which uses it to construct a contextual answer.
+
+The agent can decide when to use the policy-search tool, making this an agentic RAG workflow.
+
+> **Limitation:** The policies are synthetic demo documents, not verified company policies. Retrieval uses a top-four strategy, so relevance thresholds and better chunking are potential improvements.
 
 ---
 
-## Configuration Reference
+## API Endpoints
 
-All settings live in `backend/config.py` (Pydantic Settings), sourced from `.env`.
+The FastAPI application exposes the following endpoints.
 
-| Env Var | Default | Meaning |
+| Method | Endpoint | Purpose |
 |---|---|---|
-| `GEMINI_API_KEY` | `""` | **(Required.)** Google AI Studio API key. |
-| `GEMINI_MODEL` | `gemini-2.5-flash` | Gemini model variant to use. |
-| `DATABASE_URL` | `sqlite:///{PROJECT_ROOT}/data/olist.db` | SQLAlchemy DB URL. |
-| `CHROMA_PATH` | `{PROJECT_ROOT}/data/chroma` | ChromaDB persist directory. |
-| `DATASET_DIR` | `{PROJECT_ROOT}/dataset` | Location of Olist CSVs. |
-| `KNOWLEDGE_BASE_DIR` | `{PROJECT_ROOT}/knowledge_base` | Policy markdowns for RAG. |
-| `DATASET_AS_OF_DATE` | `2018-10-17` | Historical "today" used by exception rules. |
-| `LONG_DELIVERY_DAYS` | `30` | Threshold for the LONG_STILL_DELIVERING exception. |
-| `AGENT_RECURSION_LIMIT` | `12` | Max tool-call loop iterations per graph run. |
-| `LOG_LEVEL` | `INFO` | One of `DEBUG`, `INFO`, `WARNING`, `ERROR`. |
+| `POST` | `/api/chat` | Sends a natural-language question to the agent |
+| `GET` | `/api/orders/{order_id}` | Retrieves order details |
+| `GET` | `/api/orders/{order_id}/status` | Retrieves order status and key dates |
+| `GET` | `/api/orders/{order_id}/items` | Retrieves order items, sellers, and freight information |
+| `GET` | `/api/orders/{order_id}/exceptions` | Evaluates demo exceptions |
+| `POST` | `/api/support-tickets` | Creates a local simulated support ticket |
+| `GET` | `/api/dashboard` | Retrieves dashboard metrics |
+
+The actual HTTP response codes depend on the route implementation and request outcome.
+
+### Example: Chat request
+
+```bash
+curl -X POST http://localhost:8000/api/chat \
+  -H "Content-Type: application/json" \
+  -d '{
+    "message": "What is the status of order e481f51cbdc54678b7cc49136f2d6af7 and was it delivered on time?",
+    "session_id": "demo-1"
+  }'
+```
+
+### Example: Check exceptions
+
+```bash
+curl http://localhost:8000/api/orders/203096f03d82e0dffbc41ebc2e2bcfb7/exceptions
+```
+
+### Example: Dashboard metrics
+
+```bash
+curl http://localhost:8000/api/dashboard
+```
+
+Interactive API documentation is available at `/docs` when the application is running.
+
+---
+
+## Installation and Setup
+
+### Prerequisites
+
+- Python 3.11 or newer
+- A Google AI Studio API key with Gemini access
+- The required Olist CSV files in `dataset/`
+
+### 1. Clone the repository
+
+```bash
+git clone https://github.com/shubhankhiremath/Agentic_order_Managment.git
+cd Agentic_order_Managment
+```
+
+### 2. Create a virtual environment
+
+**Windows PowerShell**
+
+```powershell
+python -m venv .venv
+.\.venv\Scripts\Activate.ps1
+```
+
+**macOS / Linux**
+
+```bash
+python3 -m venv .venv
+source .venv/bin/activate
+```
+
+### 3. Install dependencies
+
+```bash
+python -m pip install --upgrade pip
+pip install -r requirements.txt
+```
+
+### 4. Configure environment variables
+
+Create a `.env` file in the project root with the following settings, adjusting values if required by your local setup:
+
+```dotenv
+GEMINI_API_KEY=your_gemini_api_key
+GEMINI_MODEL=gemini-2.5-flash
+DATABASE_URL=sqlite:///./data/olist.db
+CHROMA_PATH=./data/chroma
+DATASET_DIR=./dataset
+KNOWLEDGE_BASE_DIR=./knowledge_base
+DATASET_AS_OF_DATE=2018-10-17
+LONG_DELIVERY_DAYS=30
+AGENT_RECURSION_LIMIT=12
+LOG_LEVEL=INFO
+```
+
+Use the variable names and defaults supported by `backend/config.py` in the checked-out version of the project.
+
+**Security**
+
+- Never commit `.env`.
+- Never publish API keys in source code or notebooks.
+- Keep credentials out of logs.
+- Treat generated databases and local vector-store contents as local demo data.
+
+---
+
+## Initializing the Project
+
+### Step 1: Import the dataset
+
+```bash
+python -m backend.database.import_data
+```
+
+The importer validates required files and columns, initializes the database schema, loads the CSV data, and reports row counts.
+
+**Caution:** The importer rebuilds the schema. Back up any local database contents you need to retain before running it.
+
+### Step 2: Ingest the policy documents
+
+```bash
+python -m backend.rag.ingest
+```
+
+This builds the vector-store collection from the policy documents. Re-running ingestion rebuilds the collection according to the implementation.
+
+---
+
+## Running the Application
+
+Start the FastAPI server:
+
+```bash
+uvicorn backend.main:app --host 0.0.0.0 --port 8000 --reload
+```
+
+Open the following URLs in your browser:
+
+- Health check: `http://localhost:8000/health`
+- Swagger UI: `http://localhost:8000/docs`
+- ReDoc: `http://localhost:8000/redoc`
+
+### Notebook walkthrough
+
+The project includes `Agentic_Order_Management.ipynb`, which demonstrates dataset initialization, database tools, exception evaluation, RAG ingestion, agent interactions, and execution traces.
+
+Launch it with:
+
+```bash
+jupyter lab Agentic_Order_Management.ipynb
+```
+
+Alternatively:
+
+```bash
+jupyter notebook Agentic_Order_Management.ipynb
+```
 
 ---
 
 ## Testing
 
+The project includes a pytest suite for database, service, and tool behavior.
+
+Run the tests from the repository root:
+
 ```bash
 pytest -v
 ```
 
-Coverage (see `tests/test_database_and_tools.py`):
-- `test_database_initialization` – schema tables are created.
-- `test_data_loading_row_counts` – sample order rows match fixture count.
-- `test_order_status` – lookup returns delivered status for a known order.
-- `test_order_lookup_missing` – unknown IDs cleanly return `found=False`.
-- `test_order_details_and_items` – compound details join correctly.
-- `test_late_delivery_exception` – flags a known late delivery correctly.
-- `test_on_time_delivered_no_delay_exception` – on-time orders do *not* flag DELIVERY_DELAY.
-- `test_shipped_exception` – shipped-but-not-delivered orders raise SHIPPED_NOT_DELIVERED / IN_TRANSIT.
+The current test suite covers scenarios including:
 
-Add new tests under `tests/`; `pytest.ini` sets `pythonpath=.` and `testpaths=tests`.
+- Database schema initialization
+- Imported-data row-count validation
+- Successful order-status lookups
+- Unknown order IDs returning `found=False`
+- Order details, items, and payment queries
+- Detection of a known late-delivery case
+- Verification that an on-time order does not trigger the late-delivery rule
+- Shipped-order exception detection
+- Missing-payment detection
+- Approved-but-not-shipped detection
+- Support-ticket creation for an existing order
+- Clean handling of a ticket request for a missing order
+
+These are focused tests for the implemented database, service, and tool functionality. They should not be interpreted as complete end-to-end coverage of the LLM agent, HTTP API, or RAG relevance.
 
 ---
 
-## Common Recipes
+## Dashboard and Analytics
 
-### 1. Run a one-off agent query from the shell
+The dashboard service provides high-level operational metrics, including order totals, order-status breakdowns, and delivery-related exception counts.
 
-```python
-from backend.agent.graph import run_agent
+These metrics provide a quick summary of the historical dataset without requiring users to write SQL queries manually.
 
-result = run_agent(
-    "Order 203096f03d82e0dffbc41ebc2e2bcfb7 — is it eligible for a refund under the demo return policy?",
-    session_id="shell-demo"
-)
-print("REPLY:", result["response"])
-print("TOOLS:", [t["tool"] for t in result["tools_used"]])
-print("SOURCES:", result["sources"])
-```
+**Note:** Dashboard exception counts may use a narrower set of delivery-related conditions than the full exception engine. They should not automatically be interpreted as counts of every payment and delivery exception.
 
-### 2. Invoke a tool directly (no LLM)
+---
 
-```python
-from backend.tools.order_tools import (
-    get_order_status_tool,
-    check_delivery_exception_tool,
-    search_business_policies_tool as policy_tool,
-)
+## Configuration Reference
 
-print(get_order_status_tool.invoke({"order_id": "e481f51cbdc54678b7cc49136f2d6af7"}))
-print(check_delivery_exception_tool.invoke({"order_id": "203096f03d82e0dffbc41ebc2e2bcfb7"}))
-print(policy_tool.invoke({"query": "return eligibility window after delivery"}))
-```
-
-### 3. Re-initialize everything from scratch
-
-```powershell
-# Windows PowerShell
-Remove-Item -Recurse -Force data -ErrorAction SilentlyContinue
-python -m backend.database.import_data
-python -m backend.rag.ingest
-```
-
-### 4. Example order IDs to try
-
-| Order ID | Known Trait |
+| Variable | Purpose |
 |---|---|
-| `e481f51cbdc54678b7cc49136f2d6af7` | Delivered on time, standard flow |
-| `203096f03d82e0dffbc41ebc2e2bcfb7` | DELIVERY_DELAY exception (late delivery) |
-| `ee64d42b8cf066f35eac1cf57de1aa85` | SHIPPED_NOT_DELIVERED / IN_TRANSIT exception |
+| `GEMINI_API_KEY` | Authenticates requests to Gemini |
+| `GEMINI_MODEL` | Selects the configured Gemini model |
+| `DATABASE_URL` | Configures the SQLAlchemy database connection |
+| `CHROMA_PATH` | Specifies the local ChromaDB storage location |
+| `DATASET_DIR` | Specifies the Olist CSV directory |
+| `KNOWLEDGE_BASE_DIR` | Specifies the policy-document directory |
+| `DATASET_AS_OF_DATE` | Sets the historical reference date for exception evaluation |
+| `LONG_DELIVERY_DAYS` | Sets the long-delivery threshold |
+| `AGENT_RECURSION_LIMIT` | Limits graph execution steps to reduce runaway loops |
+| `LOG_LEVEL` | Configures application logging verbosity |
+
+Confirm the supported variables and default values in `backend/config.py` before relying on this table for deployment.
 
 ---
 
 ## Troubleshooting
 
-| Symptom | Fix |
+| Problem | Suggested action |
 |---|---|
-| `RuntimeError: GEMINI_API_KEY is not configured` | Double-check `.env` is at the repo root and contains a valid key. `config.py` auto-loads `.env` via `SettingsConfigDict`. |
-| `ModuleNotFoundError: No module named 'langchain_core'` | Activate the venv (`.venv\Scripts\Activate.ps1` / `source .venv/bin/activate`) before running. |
-| `ImportError: cannot import name 'search_business_policies_tool'` | 1) ensure the code is up to date; 2) run the reload-preamble cell or restart the Jupyter kernel. |
-| `Policy knowledge base is empty. Run RAG ingestion first.` | Run `python -m backend.rag.ingest`. |
-| ChromaDB `sqlite3`-related errors on Windows | Ensure the venv uses the Python.org or official Windows distribution (not a stripped Store build). |
-| Slow first RAG call | Normal: `all-MiniLM-L6-v2` is downloaded once and cached. |
-| Test failures | Ensure SQLite DB was imported (step 6). The tests use a dedicated in-memory/`tmp_path` DB via fixtures in `conftest.py`. |
+| Missing Gemini API key | Check that `.env` exists, the key is valid, and the configuration loads correctly |
+| Dataset import fails | Verify the required Olist CSV files and expected columns are present |
+| Policy search returns no results | Run the ingestion command and check that the vector-store directory is accessible |
+| Notebook import error after code changes | Restart the kernel and rerun the notebook from the beginning |
+| Stale module imports | Restart the Python process or notebook kernel to clear cached modules |
+| Unexpected exception counts | Check the historical reference date and compare dashboard aggregation rules with the exception engine |
+| API fails to start | Check installed dependencies, configuration, database initialization, and application logs |
 
 ---
 
-## License / Data Credits
+## Limitations and Future Improvements
 
-- Olist Brazilian E-Commerce Public Dataset — used here under its public release terms
-  (originally published on Kaggle by Olist). This project is a portfolio demo and is not
-  affiliated with or endorsed by Olist.
-- Policy documents bundled in `knowledge_base/` are synthetic demo rules, not Olist
-  policies.
+The project is a portfolio demonstration rather than production-ready infrastructure.
+
+Potential improvements include:
+
+1. **Authentication and authorization:** Verify that users can access only orders they are authorized to view.
+2. **Persistent conversation memory:** Replace in-memory `MemorySaver` with a persistent checkpointer for sessions that must survive restarts.
+3. **Improved RAG retrieval:** Use semantic chunk boundaries, relevance thresholds, and retrieval evaluation to reduce irrelevant context.
+4. **Agent and API testing:** Add mocked-LLM tests, route-level tests, and end-to-end workflow tests.
+5. **LLM evaluation:** Maintain a test dataset of questions, expected tool calls, and facts that should appear in answers.
+6. **Observability:** Add structured logs, metrics, and monitoring for failures, latency, and tool usage.
+7. **Concurrency and reliability:** Add appropriate transaction handling, retry policies, and safeguards for simultaneous requests.
+8. **Production policy integration:** Replace synthetic demo documents with approved, versioned business policies.
+9. **Dashboard consistency:** Align dashboard aggregation rules with the complete exception engine where full exception totals are required.
+
+---
+
+## Summary
+
+Agentic Order Management demonstrates how to combine structured data access, deterministic business rules, retrieval-augmented generation, and an LLM-powered agent in a single application.
+
+The core design principle is:
+
+**Use Python for deterministic business logic, database tools for factual order data, RAG for policy retrieval, and the LLM to coordinate these capabilities and communicate the results.**
+
+The project also demonstrates the importance of validation and testing through Pydantic schemas, isolated service logic, and pytest-based checks.
+
